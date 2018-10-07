@@ -1,49 +1,72 @@
 laser_range = 32
 
-laser = function(pos, node, range, on)
-    local laser_pos = vector.new(pos)
-    local dir = vector.new(pos)
-    local nodelist = {}
+laser_on = function(pos, facedir_param2, range)
     local meta = minetest.get_meta(pos)
-    
-    for i = 1, range, 1 do
-        if node.param2 == 1 then dir.z = laser_pos.z - i end
-        if node.param2 == 2 then dir.x = laser_pos.x - i end
-        if node.param2 == 3 then dir.z = laser_pos.z + i end
-        if node.param2 == 0 then dir.x = laser_pos.x + i end
-        
-        if on == true then
-            if minetest.get_node(dir).name ~= "air" then
-                break
+    local block_pos = vector.new(pos)
+    local beam_pos = vector.new(pos)
+    local beam_direction = minetest.facedir_to_dir(facedir_param2)
+
+    for i = 1, range + 1, 1 do
+        beam_pos = vector.add(block_pos, vector.multiply(beam_direction, i))
+        if minetest.get_node(beam_pos).name == "air" or minetest.get_node(beam_pos).name == "ldm32:laser_beam" then
+            if i <= range then
+                minetest.set_node(beam_pos, {name = "ldm32:laser_beam", param2 = facedir_param2})
+                meta:set_string("infotext", "Distance: " .. tostring(i) .. "m")
+                meta:set_int("range", i)
             else
-                nodelist[i] = dir
-                minetest.set_node(nodelist[i], {name="ldm32:laser_beam", param2 = node.param2})
+                meta:set_string("infotext", "Distance: out of range")
+                meta:set_int("range", laser_range)
             end
-            meta:set_string("infotext","Distance: " .. tostring(#nodelist) .. "m")
         else
-            if minetest.get_node(dir).name ~= "ldm32:laser_beam" then
-                break
-            else
-                nodelist[i] = dir
-                minetest.set_node(nodelist[i], {name="air"})
-            end
-            meta:set_string("infotext","Off")
+            break
         end
     end
+end
+
+laser_off = function(pos, facedir_param2, range)
+    local meta = minetest.get_meta(pos)
+    local block_pos = vector.new(pos)
+    local beam_pos = vector.new(pos)
+    local beam_direction = minetest.facedir_to_dir(facedir_param2)
+
+    for i = range, 0, -1 do
+        beam_pos = vector.add(block_pos, vector.multiply(beam_direction, i))
+        if minetest.get_node(beam_pos).name == "ldm32:laser_beam" and minetest.get_node(beam_pos).param2 == facedir_param2 then
+            minetest.set_node(beam_pos, {name="air"})
+        end
+    end
+end
+
+laser_check = function(pos, facedir_param2, range)
+    local block_pos = vector.new(pos)
+    local beam_pos = vector.new(pos)
+    local beam_direction = minetest.facedir_to_dir(facedir_param2)
+    local is_not_beam = false
+    
+    for i = 1, range + 1, 1 do
+        beam_pos = vector.add(block_pos, vector.multiply(beam_direction, i))
+        if minetest.get_node(beam_pos).name ~= "ldm32:laser_beam" and i <= range then
+            is_not_beam = true
+        elseif minetest.get_node(beam_pos).name == "air" then
+            is_not_beam = true
+        end
+    end
+    return is_not_beam
 end
 
 minetest.register_node("ldm32:spirit_level", {
     description = "Spirit Level",
     drawtype = "mesh",
     mesh = "ldm32_spirit_level.obj",
-    tiles = {"ldm32_casing.png"},
+    tiles = {"ldm32_casing.png",
+             "ldm32_casing2.png",},
     selection_box = {
         type = "fixed",
-        fixed = {{-0.5, -0.5, -0.07, 0.5, -0.25, 0.07},}
+        fixed = {{-0.07, -0.5, -0.5, 0.07, -0.25, 0.5},}
     },
     collision_box = {
         type = "fixed",
-        fixed = {{-0.5, -0.5, -0.07, 0.5, -0.25, 0.07},}
+        fixed = {{-0.07, -0.5, -0.5, 0.07, -0.25, 0.5},}
     },
     is_ground_content = true,
     paramtype2 = "facedir",
@@ -51,24 +74,37 @@ minetest.register_node("ldm32:spirit_level", {
 
     on_construct = function(pos)
         local meta = minetest.get_meta(pos)
+        local node = minetest.get_node(pos)
         meta:set_string("infotext","Off")
-        meta:set_string("is_punsh", "false")
-    end,
-    
-    after_dig_node = function(pos, oldnode, oldmetadata)
-        local meta = minetest.get_meta(pos)
-        laser(pos, oldnode, laser_range, false)
+        meta:set_string("is_on", "false")
+        meta:set_int("facedir", node.param2)
     end,
 
-    on_punch = function(pos, node, player, pointed_thing)
+    after_destruct = function(pos, oldnode, oldmetadata)
         local meta = minetest.get_meta(pos)
+        laser_off(pos, oldnode.param2, laser_range)
+        meta:set_string("infotext", "Off")
+        meta:set_string("is_on", "false")
+    end,
 
-        if meta:get_string("is_punsh") == "false" then
-            laser(pos, node,laser_range,true)
-            meta:set_string("is_punsh", "true")
+    after_dig_node = function(pos, oldnode)
+        local meta = minetest.get_meta(pos)
+        laser_off(pos, oldnode.param2, laser_range)
+        meta:set_string("infotext", "Off")
+        meta:set_string("is_on", "false")
+    end,
+
+    on_rightclick = function(pos, node, player, itemstack, pointed_thing)
+        local meta = minetest.get_meta(pos)
+        local node = minetest.get_node(pos)
+
+        if meta:get_string("is_on") == "false" then
+            laser_on(pos, node.param2, laser_range)
+            meta:set_string("is_on", "true")
         else
-            laser(pos, node,laser_range,false)
-            meta:set_string("is_punsh", "false")
+            laser_off(pos, node.param2, meta:get_int("range"))
+            meta:set_string("infotext", "Off")
+            meta:set_string("is_on", "false")
         end
     end,
 })
@@ -88,6 +124,7 @@ minetest.register_node("ldm32:laser_beam", {
     walkable = false,
     pointable = false,
     diggable = false,
+    buildable_to = true,
 })
 
 minetest.register_craft({
@@ -97,4 +134,30 @@ minetest.register_craft({
               {"group:wood","dye:grey","default:mese_crystal"},
               {"default:steel_ingot","default:steel_ingot","default:steel_ingot"}
              }
-        })
+})
+
+minetest.register_abm({
+    label = "check ldm32",
+    nodenames = {"ldm32:spirit_level"},
+    interval = 1,
+    chance = 1,
+    action = function(pos)
+        local meta = minetest.get_meta(pos)
+        local node = minetest.get_node(pos)
+        local is_not_beam = false
+        local is_air = false
+
+        if meta:get_string("is_on") == "true" then
+            if laser_check(pos, node.param2, meta:get_int("range")) then
+                laser_off(pos, node.param2, meta:get_int("range"))
+                laser_on(pos, node.param2, laser_range)
+            end
+
+            if meta:get_int("facedir") ~= node.param2 and meta:get_string("is_on") then
+                laser_off(pos, meta:get_int("facedir"), laser_range)
+                laser_on(pos, node.param2, laser_range)
+                meta:set_int("facedir", node.param2)
+            end
+        end
+    end,
+})
