@@ -1,6 +1,6 @@
 laser_range = 32
 
-laser_on = function(pos, facedir_param2, range)
+local laser_on = function(pos, facedir_param2, range)
     local meta = minetest.get_meta(pos)
     local block_pos = vector.new(pos)
     local beam_pos = vector.new(pos)
@@ -23,7 +23,7 @@ laser_on = function(pos, facedir_param2, range)
     end
 end
 
-laser_off = function(pos, facedir_param2, range)
+local laser_off = function(pos, facedir_param2, range)
     local meta = minetest.get_meta(pos)
     local block_pos = vector.new(pos)
     local beam_pos = vector.new(pos)
@@ -37,7 +37,7 @@ laser_off = function(pos, facedir_param2, range)
     end
 end
 
-laser_check = function(pos, facedir_param2, range)
+local laser_check = function(pos, facedir_param2, range)
     local block_pos = vector.new(pos)
     local beam_pos = vector.new(pos)
     local beam_direction = minetest.facedir_to_dir(facedir_param2)
@@ -47,7 +47,7 @@ laser_check = function(pos, facedir_param2, range)
         beam_pos = vector.add(block_pos, vector.multiply(beam_direction, i))
         if minetest.get_node(beam_pos).name ~= "ldm32:laser_beam" and i <= range then
             is_not_beam = true
-        elseif minetest.get_node(beam_pos).name == "air" then
+        elseif minetest.get_node(beam_pos).name == "air" and i <= laser_range then
             is_not_beam = true
         end
     end
@@ -71,6 +71,27 @@ minetest.register_node("ldm32:spirit_level", {
     is_ground_content = true,
     paramtype2 = "facedir",
     groups = {cracky = 3},
+
+    on_timer = function(pos)
+        local meta = minetest.get_meta(pos)
+        local node = minetest.get_node(pos)
+        local timer = minetest.get_node_timer(pos)
+        local is_not_beam = false
+        local is_air = false
+
+        if meta:get_string("is_on") == "true" then
+            if laser_check(pos, node.param2, meta:get_int("range")) then
+                laser_off(pos, node.param2, meta:get_int("range"))
+                laser_on(pos, node.param2, laser_range)
+            end
+            if meta:get_int("facedir") ~= node.param2 and meta:get_string("is_on") then
+                laser_off(pos, meta:get_int("facedir"), laser_range)
+                laser_on(pos, node.param2, laser_range)
+                meta:set_int("facedir", node.param2)
+            end
+        end
+        timer:start(1)
+    end,
 
     on_construct = function(pos)
         local meta = minetest.get_meta(pos)
@@ -97,14 +118,17 @@ minetest.register_node("ldm32:spirit_level", {
     on_rightclick = function(pos, node, player, itemstack, pointed_thing)
         local meta = minetest.get_meta(pos)
         local node = minetest.get_node(pos)
+        local timer = minetest.get_node_timer(pos)
 
         if meta:get_string("is_on") == "false" then
             laser_on(pos, node.param2, laser_range)
             meta:set_string("is_on", "true")
+            timer:start(1)
         else
             laser_off(pos, node.param2, meta:get_int("range"))
             meta:set_string("infotext", "Off")
             meta:set_string("is_on", "false")
+            timer:stop()
         end
     end,
 })
@@ -134,30 +158,4 @@ minetest.register_craft({
               {"group:wood","dye:grey","default:mese_crystal"},
               {"default:steel_ingot","default:steel_ingot","default:steel_ingot"}
              }
-})
-
-minetest.register_abm({
-    label = "check ldm32",
-    nodenames = {"ldm32:spirit_level"},
-    interval = 1,
-    chance = 1,
-    action = function(pos)
-        local meta = minetest.get_meta(pos)
-        local node = minetest.get_node(pos)
-        local is_not_beam = false
-        local is_air = false
-
-        if meta:get_string("is_on") == "true" then
-            if laser_check(pos, node.param2, meta:get_int("range")) then
-                laser_off(pos, node.param2, meta:get_int("range"))
-                laser_on(pos, node.param2, laser_range)
-            end
-
-            if meta:get_int("facedir") ~= node.param2 and meta:get_string("is_on") then
-                laser_off(pos, meta:get_int("facedir"), laser_range)
-                laser_on(pos, node.param2, laser_range)
-                meta:set_int("facedir", node.param2)
-            end
-        end
-    end,
 })
