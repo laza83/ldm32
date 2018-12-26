@@ -54,12 +54,13 @@ local laser_check = function(pos, facedir_param2, range)
     return is_not_beam
 end
 
-minetest.register_node("ldm32:spirit_level", {
+minetest.register_node("ldm32:casing", {
     description = "Spirit Level",
+    inventory_image = "ldm32_inventory.png",
     drawtype = "mesh",
-    mesh = "ldm32_spirit_level.obj",
-    tiles = {"ldm32_casing.png",
-             "ldm32_casing2.png",},
+    mesh = "ldm32_casing.obj",
+    tiles = {"ldm32_casing2.png",
+             "ldm32_casing.png",},
     selection_box = {
         type = "fixed",
         fixed = {{-0.07, -0.5, -0.5, 0.07, -0.25, 0.5},}
@@ -68,9 +69,11 @@ minetest.register_node("ldm32:spirit_level", {
         type = "fixed",
         fixed = {{-0.07, -0.5, -0.5, 0.07, -0.25, 0.5},}
     },
+    stack_max = 1,
     is_ground_content = true,
     paramtype2 = "facedir",
     groups = {cracky = 3},
+    on_place = minetest.rotate_node,
 
     on_timer = function(pos)
         local meta = minetest.get_meta(pos)
@@ -153,7 +156,7 @@ minetest.register_node("ldm32:laser_beam", {
 
 minetest.register_craft({
     --type = "sharpless",
-    output = "ldm32:spirit_level",
+    output = "ldm32:casing",
     recipe = {
               {"group:wood","dye:grey","default:mese_crystal"},
               {"default:steel_ingot","default:steel_ingot","default:steel_ingot"}
