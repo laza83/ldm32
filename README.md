@@ -12,7 +12,7 @@ Requirement
 Tested with Minetest 0.4.17.1
 
 
-Recipe:
+Recipe
 ----
 ```
 group:wood,          dye:grey,            default:mese_crystal
