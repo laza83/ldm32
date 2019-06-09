@@ -55,7 +55,7 @@ local laser_check = function(pos, facedir_param2, range)
 end
 
 minetest.register_node("ldm32:casing", {
-    description = "Spirit Level",
+    description = "Laser Distance Meter",
     inventory_image = "ldm32_inventory.png",
     drawtype = "mesh",
     mesh = "ldm32_casing.obj",
@@ -72,7 +72,7 @@ minetest.register_node("ldm32:casing", {
     stack_max = 1,
     is_ground_content = true,
     paramtype2 = "facedir",
-    groups = {cracky = 3},
+    groups = {snappy = 3, dig_immediate = 3},
     on_place = minetest.rotate_node,
 
     on_timer = function(pos)
